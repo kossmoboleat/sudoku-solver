@@ -1,7 +1,11 @@
 #ifndef COMMON_H
 #define COMMON_H
 
-const int SIDE=3;
-const int ENTRIES=SIDE*SIDE;
+namespace sudoku {
+
+int const SIDE        = 3;
+int const NUM_ENTRIES = SIDE*SIDE;
+
+} // namespace sudoku
 
 #endif // COMMON_H

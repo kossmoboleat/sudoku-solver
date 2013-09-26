@@ -5,13 +5,13 @@
 
 #include "decision.h"
 
-#include <QList>
+namespace sudoku {
 
-Solver::Solver(int const in_fixed_numbers[ENTRIES][ENTRIES])
+Solver::Solver( QVector< QVector<int> > const in_fixed_numbers )
 {
-    for(int i=0;i<ENTRIES;i++) {
+    for(int i=0; i<NUM_ENTRIES; i++) {
         QVector<int> row;
-        for(int j=0;j<ENTRIES;j++) {
+        for(int j=0; j<NUM_ENTRIES; j++) {
             row.push_back( in_fixed_numbers[i][j] );
         }
         fixed_numbers.push_back(row);
@@ -26,20 +26,20 @@ void Solver::setup()
 {
     // setup a set with all numbers
     QSet< int > all_numbers;
-    for(int i=1;i<=ENTRIES;i++) {
+    for(int i=1; i<=NUM_ENTRIES; i++) {
         all_numbers.insert( i );
     }
 
     // initialize blocks to have all numbers
-    for(int i=0;i<ENTRIES;i++) {
+    for(int i=0; i<NUM_ENTRIES; i++) {
         blocks.push_back( all_numbers );
     }
 
     // convert integer array to two-dimensional QVector
-    for(int i=0;i<ENTRIES;i++) {
+    for(int i=0; i<NUM_ENTRIES; i++) {
         QVector< int > row;
         QVector< QSet< int > > numbers_to_try_row;
-        for(int j=0;j<ENTRIES;j++) {
+        for(int j=0; j<NUM_ENTRIES; j++) {
             int const fixed_number = fixed_numbers[i][j];
 
             row.push_back(fixed_number);
@@ -62,7 +62,7 @@ bool Solver::solve()
     // check if starting numbers are valid
     QList<Decision> decisions;
     bool addedDecisions=false;
-    if( !checkValid(addedDecisions, decisions) ) {
+    if( !isValid(addedDecisions, decisions) ) {
         std::cerr << "Starting numbers are invalid!" << std::endl;
         reverseDecisions( decisions );
         return false;
@@ -71,9 +71,9 @@ bool Solver::solve()
     return recursiveSolve(0);
 }
 
-bool Solver::recursiveSolve(int depth)
+bool Solver::recursiveSolve( int depth )
 {
-    if( checkFilled() ) {
+    if( isFilled() ) {
         return true;
     }
 
@@ -86,7 +86,7 @@ bool Solver::recursiveSolve(int depth)
     bool addedDerivations;
     do {
         addedDerivations=false;
-        if( !checkValid(addedDerivations, decisions) ) {
+        if( !isValid(addedDerivations, decisions) ) {
 #ifndef QT_NO_DEBUG
             std::cerr << "Not a valid solution." << std::endl;
 #endif
@@ -95,15 +95,15 @@ bool Solver::recursiveSolve(int depth)
         }
     } while( addedDerivations );
 
-    if( checkFilled() ) {
+    if( isFilled() ) {
         return true;
     }
 
     int r=0; // row
     int c=0; // column
     bool found_empty_cell=false;
-    for(int i=0;i<ENTRIES && !found_empty_cell; i++ ) {
-        for(int j=0;j<ENTRIES; j++ ) {
+    for(int i=0; i<NUM_ENTRIES && !found_empty_cell; i++ ) {
+        for(int j=0;j<NUM_ENTRIES; j++ ) {
             if( used_numbers[i][j]==0 ) {
                 r = i;
                 c = j;
@@ -146,17 +146,17 @@ bool Solver::recursiveSolve(int depth)
     return false;
 }
 
-void Solver::reverseDecisions( QList<Decision> const &decisions )
+void Solver::reverseDecisions( QList<Decision> const & decisions )
 {
     for(QList<Decision>::const_iterator const_it=decisions.begin(); const_it!=decisions.end(); const_it++ ) {
-        used_numbers[const_it->x][const_it->y] = 0;
+        used_numbers[const_it->getX()][const_it->getY()] = 0;
     }
 }
 
-bool Solver::checkFilled()
+bool Solver::isFilled() const
 {
-    for(int i=0;i<ENTRIES;i++) {
-        for(int j=0;j<ENTRIES;j++) {
+    for(int i=0; i<NUM_ENTRIES; i++) {
+        for(int j=0; j<NUM_ENTRIES; j++) {
             if( used_numbers[i][j]==0 ) {
                 return false;
             }
@@ -165,19 +165,19 @@ bool Solver::checkFilled()
     return true;
 }
 
-bool Solver::checkValid(bool &addedDecision, QList<Decision> &decisions)
+bool Solver::isValid( bool & addedDecision, QList<Decision> & decisions )
 {
     QSet< int > all_numbers;
-    for(int i=1;i<=ENTRIES;i++) {
+    for(int i=1; i<=NUM_ENTRIES; i++) {
         all_numbers.insert(i);
     }
 
     // check rows
     QVector< QSet< int > > checked_rows;
-    for(int i=0;i<ENTRIES;i++) {
+    for(int i=0; i<NUM_ENTRIES; i++) {
         // for every row check that a number does not occur twice
         QSet< int > numbers_to_check( all_numbers );
-        for( int j=0;j<ENTRIES;j++) {
+        for( int j=0; j<NUM_ENTRIES; j++) {
             if( used_numbers[i][j]!=0 && !numbers_to_check.remove( used_numbers[i][j] ) ) { // number already seen in the row
 #ifndef QT_NO_DEBUG
                 std::cerr << "Checking Rows: Cell " << i << "," << j << " value: " << used_numbers[i][j] << " is not valid!" << std::endl;
@@ -190,10 +190,10 @@ bool Solver::checkValid(bool &addedDecision, QList<Decision> &decisions)
 
     // check columns
     QVector< QSet< int > > checked_columns;
-    for(int j=0;j<ENTRIES;j++) {
+    for(int j=0; j<NUM_ENTRIES; j++) {
         // for every column check that a number does not occur twice
         QSet< int > numbers_to_check( all_numbers );
-        for( int i=0;i<ENTRIES;i++) {
+        for( int i=0; i<NUM_ENTRIES; i++) {
             if( used_numbers[i][j]!=0 && !numbers_to_check.remove( used_numbers[i][j] ) ) { // number already seen in this column
 #ifndef QT_NO_DEBUG
                 std::cerr << "Checking Columns: Cell " << i << "," << j << " value: " << used_numbers[i][j] << " is not valid!" << std::endl;
@@ -206,12 +206,12 @@ bool Solver::checkValid(bool &addedDecision, QList<Decision> &decisions)
 
     // check blocks
     QVector< QSet<int> > checked_blocks;
-    for(int i=0;i<ENTRIES;i++) {
+    for(int i=0;i<NUM_ENTRIES;i++) {
         checked_blocks.push_back( all_numbers );
     }
 
-    for(int i=0;i<ENTRIES;i++) {
-        for(int j=0;j<ENTRIES;j++) {
+    for(int i=0; i<NUM_ENTRIES; i++) {
+        for(int j=0; j<NUM_ENTRIES; j++) {
             if( used_numbers[i][j]!=0 ) {
                 int const block_number = SIDE*(i/SIDE) + (j/SIDE);
                 if( !checked_blocks[block_number].remove( used_numbers[i][j] ) ) { // number already seen in this block
@@ -224,12 +224,12 @@ bool Solver::checkValid(bool &addedDecision, QList<Decision> &decisions)
         }
     }
 
-    for(int i=0;i<ENTRIES;i++) {
-        for(int j=0;j<ENTRIES;j++) {
+    for(int i=0; i<NUM_ENTRIES; i++) {
+        for(int j=0; j<NUM_ENTRIES; j++) {
             if( used_numbers[i][j]==0 ){
                 int const block_number = SIDE*(i/SIDE) + (j/SIDE);
 
-                numbers_to_try[i][j] = checked_rows[i];
+                numbers_to_try[i][j] = checked_rows.at(i);
                 numbers_to_try[i][j] = numbers_to_try[i][j].intersect( checked_columns[j]);
                 numbers_to_try[i][j] = numbers_to_try[i][j].intersect( checked_blocks[block_number] );
 
@@ -244,27 +244,6 @@ bool Solver::checkValid(bool &addedDecision, QList<Decision> &decisions)
                     int solved_value = *numbers_to_try[i][j].begin();
 #ifndef QT_NO_DEBUG
                     std::cerr << "Found value " << solved_value << " at cell " << i << "," << j << std::endl;
-
-#if 0
-                    std::cerr << "checked column " << j << ": ";
-                    for(QSet<int>::const_iterator const_it=checked_columns[j].begin();const_it!=checked_columns[j].end();const_it++) {
-                        std::cerr << *const_it;
-                    }
-                    std::cerr << std::endl;
-
-                    std::cerr << "checked row " << i << ": ";
-                    for(QSet<int>::const_iterator const_it=checked_rows[i].begin();const_it!=checked_rows[i].end();const_it++) {
-                        std::cerr << *const_it;
-                    }
-                    std::cerr << std::endl;
-
-
-                    std::cerr << "checked block " << block_number << ": ";
-                    for(QSet<int>::const_iterator const_it=checked_blocks[block_number].begin();const_it!=checked_blocks[block_number].end();const_it++) {
-                        std::cerr << *const_it;
-                    }
-                    std::cerr << std::endl;
-#endif
 #endif
 
                     used_numbers[i][j] = solved_value;
@@ -282,3 +261,5 @@ QVector< QVector< int > > Solver::getSolution()
 {
     return used_numbers;
 }
+
+} // namespace sudoku
