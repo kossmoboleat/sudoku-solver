@@ -5,11 +5,11 @@ TEMPLATE  = app
 
 SOURCES  += main.cpp\
             mainwindow.cpp \
-            solver.cpp
+            solver.cpp \
+            logger.cpp
 
 HEADERS  += mainwindow.h \
             solver.h \
             common.h \
-            decision.h
-
-FORMS    += mainwindow.ui
+            decision.h \
+            logger.h

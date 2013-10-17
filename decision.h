@@ -1,5 +1,4 @@
-#ifndef DECISION_H
-#define DECISION_H
+#pragma once
 
 namespace sudoku {
 
@@ -24,5 +23,3 @@ private:
 };
 
 } // namespace sudoku
-
-#endif // DECISION_H

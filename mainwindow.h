@@ -1,5 +1,4 @@
-#ifndef MAINWINDOW_H
-#define MAINWINDOW_H
+#pragma once
 
 #include <QtWidgets/QMainWindow>
 #include <QtWidgets/QLineEdit>
@@ -31,5 +30,3 @@ private:
 };
 
 } // namespace sudoku
-
-#endif // MAINWINDOW_H

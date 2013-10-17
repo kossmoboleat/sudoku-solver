@@ -1,5 +1,4 @@
-#ifndef SOLVER_H
-#define SOLVER_H
+#pragma once
 
 #include "common.h"
 
@@ -40,4 +39,3 @@ private:
 
 } // namespace sudoku
 
-#endif // SOLVER_H
