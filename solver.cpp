@@ -53,7 +53,7 @@ void Solver::setup()
             blocks[block_number].remove( fixed_number );
         }
 
-        used_numbers.push_back( row );
+        filled_grid.push_back( row );
         numbers_to_try.push_back( numbers_to_try_row );
     }
 }
@@ -107,11 +107,11 @@ bool Solver::recursiveSolve( int depth )
     int row=0;
     int column=0;
 
-    bool found_empty_cell=false;
+    bool found_empty_cell = false;
 
     for(int i=0; i<NUM_ENTRIES && !found_empty_cell; i++ ) {
         for(int j=0;j<NUM_ENTRIES; j++ ) {
-            if( used_numbers[i][j]==0 ) {
+            if( filled_grid[i][j]==0 ) {
                 row = i;
                 column = j;
 
@@ -135,7 +135,7 @@ bool Solver::recursiveSolve( int depth )
             Decision candidate(row,column,*const_it);
             decisions.push_back(candidate);
 
-            used_numbers[row][column]=*const_it;
+            filled_grid[row][column]=*const_it;
 
             Logger::getInstance().log( "Trying " + QString::number( *const_it ) + " at " + QString::number( row ) + "," + QString::number( column ) );
 
@@ -145,7 +145,7 @@ bool Solver::recursiveSolve( int depth )
                 Logger::getInstance().log( "***** unsuccessful: back at depth " + QString::number( depth ) + " *****" );
 
                 // removing try
-                used_numbers[row][column]=0;
+                filled_grid[row][column]=0;
                 decisions.pop_back();
             }
         }
@@ -159,7 +159,7 @@ bool Solver::recursiveSolve( int depth )
 void Solver::reverseDecisions( QList<Decision> const & decisions )
 {
     for(QList<Decision>::const_iterator const_it=decisions.begin(); const_it!=decisions.end(); const_it++ ) {
-        used_numbers[const_it->getX()][const_it->getY()] = 0;
+        filled_grid[const_it->getX()][const_it->getY()] = 0;
     }
 }
 
@@ -167,7 +167,7 @@ bool Solver::isFilled() const
 {
     for(int i=0; i<NUM_ENTRIES; i++) {
         for(int j=0; j<NUM_ENTRIES; j++) {
-            if( used_numbers[i][j]==0 ) {
+            if( filled_grid[i][j]==0 ) {
                 return false;
             }
         }
@@ -175,73 +175,102 @@ bool Solver::isFilled() const
     return true;
 }
 
+bool Solver::isValidRow( QVector< QVector< int > > const &rFilledGrid, int const row, QSet< int > &rUnusedNumbers ) const
+{
+    for( int i=1; i<=NUM_ENTRIES; i++ ) {
+        rUnusedNumbers.insert(i);
+    }
+
+    for( int col=0; col<NUM_ENTRIES; col++) {
+        if( rFilledGrid[row][col]!=0 && !rUnusedNumbers.remove( rFilledGrid[row][col] ) ) { // number already seen in the row
+            Logger::getInstance().log( "Checking Rows: Cell " + QString::number( row ) + "," + QString::number( col ) + " value: " + QString::number( rFilledGrid[row][col] ) + " is not valid!");
+
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool Solver::isValidColumn( QVector< QVector< int > > const &rFilledGrid, int const col, QSet< int > &rUnusedNumbers ) const
+{
+    for( int i=1; i<=NUM_ENTRIES; i++ ) {
+        rUnusedNumbers.insert(i);
+    }
+
+    for( int row=0; row<NUM_ENTRIES; row++) {
+        if( rFilledGrid[row][col]!=0 && !rUnusedNumbers.remove( rFilledGrid[row][col] ) ) { // number already seen in the column
+            Logger::getInstance().log( "Checking Columns: Cell " + QString::number( row ) + "," + QString::number( col ) + " value: " + QString::number( rFilledGrid[row][col] ) + " is not valid!");
+
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool Solver::isValidBlock( QVector< QVector< int > > const &rFilledGrid, int const block, QSet< int > &rUnusedNumbers ) const
+{
+    for( int i=1; i<=NUM_ENTRIES; i++ ) {
+        rUnusedNumbers.insert(i);
+    }
+
+    int const row_start = ( block / SIDE ) * SIDE;
+    int const col_start = ( block % SIDE ) * SIDE;
+
+    for( int block_pos=0; block_pos<NUM_ENTRIES; block_pos++ ) {
+        int const row = row_start + ( block_pos / SIDE );
+        int const col = col_start + ( block_pos % SIDE );
+
+        if( rFilledGrid[row][col]!=0 && !rUnusedNumbers.remove( rFilledGrid[row][col] ) ) { // number already seen in the column
+            Logger::getInstance().log( "Checking Blocks: Cell " + QString::number( row ) + "," + QString::number( col ) + " value: " + QString::number( rFilledGrid[row][col] ) + " is not valid!" );
+
+            return false;
+        }
+    }
+
+    return true;
+}
+
 bool Solver::isValid( bool & addedDecision, QList<Decision> & decisions )
 {
     QSet< int > all_numbers;
-    for( int i=1; i<=NUM_ENTRIES; i++ ) {
-        all_numbers.insert(i);
+    for( int num=1; num<=NUM_ENTRIES; num++ ) {
+        all_numbers.insert(num);
     }
 
-    // check rows
-    QVector< QSet< int > > checked_rows;
-    for( int i=0; i<NUM_ENTRIES; i++ ) {
-
-        // for every row check that a number does not occur twice
-        QSet< int > numbers_to_check( all_numbers );
-        for( int j=0; j<NUM_ENTRIES; j++) {
-            if( used_numbers[i][j]!=0 && !numbers_to_check.remove( used_numbers[i][j] ) ) { // number already seen in the row
-                Logger::getInstance().log( "Checking Rows: Cell " + QString::number( i ) + "," + QString::number( j ) + " value: " + QString::number( used_numbers[i][j] ) + " is not valid!");
-
-                return false;
-            }
+    // check that no row contains duplicate numbers
+    QVector< QSet< int > > missing_numbers_per_row( NUM_ENTRIES );
+    for( int row=0; row<NUM_ENTRIES; row++ ) {
+        if( !isValidRow( filled_grid, row, missing_numbers_per_row[row] ) ) {
+            return false;
         }
-        checked_rows.push_back( numbers_to_check );
     }
 
-    // check columns
-    QVector< QSet< int > > checked_columns;
-    for( int j=0; j<NUM_ENTRIES; j++ ) {
-
-        // for every column check that a number does not occur twice
-        QSet< int > numbers_to_check( all_numbers );
-        for( int i=0; i<NUM_ENTRIES; i++) {
-
-            if( used_numbers[i][j]!=0 && !numbers_to_check.remove( used_numbers[i][j] ) ) { // number already seen in this column
-                Logger::getInstance().log( "Checking Columns: Cell " + QString::number( i ) + "," + QString::number( j ) + " value: " + QString::number( used_numbers[i][j] ) + " is not valid!" );
-
-                return false;
-            }
+    // check that no column contains duplicate numbers
+    QVector< QSet< int > > missing_numbers_per_column( NUM_ENTRIES );
+    for( int col=0; col<NUM_ENTRIES; col++ ) {
+        if( !isValidColumn( filled_grid, col, missing_numbers_per_column[col] ) ) {
+            return false;
         }
-        checked_columns.push_back( numbers_to_check );
     }
 
-    // check blocks
-    QVector< QSet<int> > checked_blocks;
-    for( int i=0; i<NUM_ENTRIES; i++ ) {
-        checked_blocks.push_back( all_numbers );
-    }
-
-    for( int i=0; i<NUM_ENTRIES; i++ ) {
-        for( int j=0; j<NUM_ENTRIES; j++ ) {
-            if( used_numbers[i][j]!=0 ) {
-                int const block_number = SIDE*(i/SIDE) + (j/SIDE);
-                if( !checked_blocks[block_number].remove( used_numbers[i][j] ) ) { // number already seen in this block
-
-                    Logger::getInstance().log( "Checking Blocks: Cell " + QString::number( i ) + "," + QString::number( j ) + " value: " + QString::number( used_numbers[i][j] ) + " is not valid!" );
-                    return false;
-                }
-            }
+    // check that no SIDE*SIDE block contains duplicate numbers
+    QVector< QSet<int> > missing_numbers_per_block( NUM_ENTRIES );
+    for( int block=0; block<NUM_ENTRIES; block++ ) {
+        if( !isValidBlock( filled_grid, block, missing_numbers_per_block[block] ) ) {
+            return false;
         }
     }
 
     for( int i=0; i<NUM_ENTRIES; i++ ) {
         for( int j=0; j<NUM_ENTRIES; j++ ) {
-            if( used_numbers[i][j]==0 ){
+            if( filled_grid[i][j]==0 ){
                 int const block_number = SIDE*(i/SIDE) + (j/SIDE);
 
-                numbers_to_try[i][j] = checked_rows.at(i);
-                numbers_to_try[i][j] = numbers_to_try[i][j].intersect( checked_columns[j]);
-                numbers_to_try[i][j] = numbers_to_try[i][j].intersect( checked_blocks[block_number] );
+                numbers_to_try[i][j] = missing_numbers_per_row.at(i);
+                numbers_to_try[i][j] = numbers_to_try[i][j].intersect( missing_numbers_per_column[j]);
+                numbers_to_try[i][j] = numbers_to_try[i][j].intersect( missing_numbers_per_block[block_number] );
 
                 if( numbers_to_try[i][j].size()==0 ) {
                     Logger::getInstance().log( "Cell " + QString::number( i ) + "," + QString::number( j ) + " has no solutions left!");
@@ -253,7 +282,7 @@ bool Solver::isValid( bool & addedDecision, QList<Decision> & decisions )
                     int const solved_value = *numbers_to_try[i][j].begin();
                     Logger::getInstance().log( "Found value " + QString::number( solved_value ) + " at cell " + QString::number( i ) + "," + QString::number( j ) );
 
-                    used_numbers[i][j] = solved_value;
+                    filled_grid[i][j] = solved_value;
                     Decision decision(i,j,solved_value);
                     decisions.push_back( decision );
                 }
@@ -266,7 +295,7 @@ bool Solver::isValid( bool & addedDecision, QList<Decision> & decisions )
 
 QVector< QVector< int > > Solver::getSolution()
 {
-    return used_numbers;
+    return filled_grid;
 }
 
 } // namespace sudoku
